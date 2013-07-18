@@ -42,8 +42,32 @@ var cheerioHtmlFile = function(htmlfile) {
     return cheerio.load(fs.readFileSync(htmlfile));
 };
 
+var cheerioURLFile = function() {
+    return cheerio.load(fs.readFileSync(htmlfile));
+};
+
 var loadChecks = function(checksfile) {
     return JSON.parse(fs.readFileSync(checksfile));
+};
+
+var checkURLFile = function(urlresult, checksfile) {
+//    console.log("url stuff");
+//    console.log(urlresult);
+
+
+    $ = cheerio.load(urlresult);
+
+    var checks = loadChecks(checksfile).sort();
+
+//    console.log("DEBUG:");
+//    console.log( $(checks[0]).length>0);
+
+    var out = {};
+    for(var ii in checks) {
+        var present = $(checks[ii]).length > 0;
+        out[checks[ii]] = present;
+    }
+    return out;
 };
 
 
@@ -64,28 +88,73 @@ var clone = function(fn) {
     return fn.bind({});
 };
 
-var checker = function(result) {
+
+var buildfn = function(checks) {
+    var response2console = function(result, response) {
+        if (result instanceof Error) {
+            console.error('Error: ' + util.format(response.message));
+        } else {
+	    fs.writeFileSync("url.txt",result);
+            checkHtmlFile("url.txt", checks);
+	}
+	return response;
+    };
+    return response2console;
+};
+
+
+
+var checker = function(result, response, urlresult) {
 	if (result instanceof Error) {
 	    console.log('Error: ' + result.message);
 	    this.retry(5000); // try again after 5 sec
 	} else {
-	    console.log("result:");
-	    console.log(result);
+//	    console.log("result in checker:");
+//	    console.log(result);
+	    
 	}
+return response;
 }
 
 if(require.main == module) {
     program
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
+//        .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
         .option('-u, --url <url>', 'URL to index.html', URL_DEFAULT)
         .parse(process.argv);
 
-    var myurl = "http://limitless-badlands-4497.herokuapp.com"
-    restler.get(myurl).on('complete', checker);
+    var myurl = "http://limitless-badlands-4497.herokuapp.com";
+
+  //  var response2console = buildfn();
+
+
+//    var response2console = buildfn(program.checks);
+
+//    var urlresult = restler.get(myurl).on('complete', response2console);
+    
+//    $=Cheerio.load(result);
+//    console.log("urlresult:");
+//    console.log(urlresult);
+
+//    var checkJson = checkURLFile(urlresult, program.checks);
+
+if(program.file){
     var checkJson = checkHtmlFile(program.file, program.checks);
     var outJson = JSON.stringify(checkJson, null, 4);
     console.log(outJson);
+}
+if(program.url){
+    var response2console = buildfn(program.checks);
+    restler.get(myurl).on('complete', response2console);
+    var checkJson = checkHtmlFile("url.txt", program.checks);
+    var outJson = JSON.stringify(checkJson, null, 4);
+    console.log(outJson);
+}
+    
+//    var checkJson = checkHtmlFile(program.file, program.checks);
+
+//    var outJson = JSON.stringify(checkJson, null, 4);
+//    console.log(outJson);
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
